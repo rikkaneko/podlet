@@ -178,7 +178,7 @@ if [[ "$action" == upload ]]; then
   trap 'exit 130' INT;
   trap 'exit 143' TERM;
   work_dir="$(mktemp -d "$repo_dir/.podlet-upload.XXXXXX")";
-  selected=("$public/dists" "$public/podlet-archive-keyring.gpg");
+  selected=("$public/dists" "$public/archive-keyring.gpg");
   if [[ -e "$public/pool" || -L "$public/pool" ]]; then
     if [[ ! -d "$public/pool" ]]; then printf '%s\n' 'public/pool must be a directory.' >&2; exit 1; fi;
     selected+=("$public/pool");
@@ -189,7 +189,7 @@ if [[ "$action" == upload ]]; then
     printf '%s\n' 'Refusing to upload symlinks or special files in public repository content.' >&2;
     exit 1;
   fi;
-  for file in podlet-archive-keyring.gpg dists/trixie/InRelease dists/trixie/Release dists/trixie/Release.gpg; do
+  for file in archive-keyring.gpg dists/trixie/InRelease dists/trixie/Release dists/trixie/Release.gpg; do
     if [[ ! -s "$public/$file" ]]; then printf 'Missing public upload artifact: %s\n' "$file" >&2; exit 1; fi;
   done;
   reprepro --basedir "$repo_dir" --outdir "$public" check trixie;
@@ -199,8 +199,8 @@ if [[ "$action" == upload ]]; then
   cp -R -- "${selected[@]}" "$snapshot/";
   mkdir -p -- "$snapshot/pool";
   release="$snapshot/dists/trixie/Release";
-  gpgv --keyring "$snapshot/podlet-archive-keyring.gpg" --output "$work_dir/verified-release" "$snapshot/dists/trixie/InRelease";
-  gpgv --keyring "$snapshot/podlet-archive-keyring.gpg" "$snapshot/dists/trixie/Release.gpg" "$release";
+  gpgv --keyring "$snapshot/archive-keyring.gpg" --output "$work_dir/verified-release" "$snapshot/dists/trixie/InRelease";
+  gpgv --keyring "$snapshot/archive-keyring.gpg" "$snapshot/dists/trixie/Release.gpg" "$release";
   cmp -- "$work_dir/verified-release" "$release";
   # Validate the signed index manifest before trusting paths or bytes from the snapshot.
   awk '/^SHA256:$/ { active=1; next } /^[^[:space:]]/ { active=0 } active && NF { print }' "$release" > "$work_dir/hash-entries";
@@ -235,7 +235,7 @@ if [[ "$action" == upload ]]; then
       '--chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r' --rsh='ssh -o BatchMode=yes');
     if [[ "$dry_run" == true ]]; then rsync_options+=(--dry-run); fi;
     rsync "${rsync_options[@]}" -- "$snapshot/pool/" "${destination}pool/";
-    rsync "${rsync_options[@]}" -- "$snapshot/podlet-archive-keyring.gpg" "$destination";
+    rsync "${rsync_options[@]}" -- "$snapshot/archive-keyring.gpg" "$destination";
     rsync "${rsync_options[@]}" -- "$work_dir/indexes/dists/" "${destination}dists/";
     for file in Release Release.gpg InRelease; do
       rsync "${rsync_options[@]}" -- "$snapshot/dists/trixie/$file" "${destination}dists/trixie/$file";
@@ -248,7 +248,7 @@ if [[ "$action" == upload ]]; then
     transfer_options=(--no-follow-symlinks --only-show-errors --no-progress);
     if [[ "$dry_run" == true ]]; then transfer_options+=(--dryrun); fi;
     aws "${aws_options[@]}" s3 sync "$snapshot/pool/" "${destination}pool/" "${transfer_options[@]}";
-    aws "${aws_options[@]}" s3 cp "$snapshot/podlet-archive-keyring.gpg" "${destination}podlet-archive-keyring.gpg" \
+    aws "${aws_options[@]}" s3 cp "$snapshot/archive-keyring.gpg" "${destination}archive-keyring.gpg" \
       "${transfer_options[@]}" --cache-control no-cache;
     aws "${aws_options[@]}" s3 cp "$work_dir/indexes/dists/" "${destination}dists/" \
       --recursive "${transfer_options[@]}" --cache-control no-cache;
@@ -404,5 +404,5 @@ for file in InRelease Release Release.gpg; do
     exit 1;
   fi;
 done;
-install -m644 "$work_dir/keyring.gpg" "$repo_dir/public/podlet-archive-keyring.gpg";
+install -m644 "$work_dir/keyring.gpg" "$repo_dir/public/archive-keyring.gpg";
 printf 'Repository ready in %s/public/ (serve only this directory).\n' "$repo_dir";
